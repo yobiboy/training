@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(docker compose *)",
+      "mcp__laravel-boost__search-docs",
+      "Bash(vendor/bin/pint --format agent tests/Feature/Filament/Pages/FinanceProcessorReviewTest.php)",
+      "Bash(vendor/bin/pint --format agent app/Filament/Resources/DisbursementVouchers/Schemas/DisbursementVoucherForm.php)",
+      "Bash(vendor/bin/pint --format agent app/Filament/Pages/FinanceSupervisorReview.php)"
+    ]
+  }
+}
