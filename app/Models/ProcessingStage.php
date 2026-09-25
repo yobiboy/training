@@ -17,6 +17,10 @@ class ProcessingStage extends Model
     /** @use HasFactory<ProcessingStageFactory> */
     use HasFactory, SoftDeletes, TracksAuthenticatedUser;
 
+    public const FINANCE_PROCESSOR = 'Finance Processor';
+
+    public const SUPERVISOR = 'Supervisor';
+
     /**
      * Get the attributes that should be cast.
      *

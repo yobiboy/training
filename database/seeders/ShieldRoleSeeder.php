@@ -16,10 +16,10 @@ use Spatie\Permission\PermissionRegistrar;
 class ShieldRoleSeeder extends Seeder
 {
     /**
-     * The three case-study roles. Permissions start empty — assign them in
+     * The case-study roles. Permissions start empty — assign them in
      * Shield's Roles UI once the resources exist.
      */
-    public const DOMAIN_ROLES = ['Requesting Unit', 'Finance Processor', 'Finance Supervisor'];
+    public const DOMAIN_ROLES = ['requesting_unit', 'finance_processor', 'finance_supervisor', 'custodian', 'approver'];
 
     public function run(): void
     {

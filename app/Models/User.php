@@ -44,6 +44,21 @@ class User extends Authenticatable implements FilamentUser
         return $this->roles()->exists();
     }
 
+    /**
+     * The voucher-workflow role that best describes this user, checked from
+     * most to least privileged, or null when they hold none of them.
+     */
+    public function primaryRole(): ?string
+    {
+        foreach (['super_admin', 'finance_supervisor', 'finance_processor', 'requesting_unit'] as $role) {
+            if ($this->hasRole($role)) {
+                return $role;
+            }
+        }
+
+        return null;
+    }
+
     public function office(): BelongsTo
     {
         return $this->belongsTo(Office::class);

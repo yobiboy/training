@@ -2,12 +2,15 @@
 
 namespace App\Filament\Pages;
 
+use App\Filament\Resources\DisbursementVouchers\Schemas\DisbursementVoucherDetails;
+use App\Filament\Widgets\FinanceProcessorDvOverview;
 use App\Models\DisbursementVoucher;
 use App\Models\Office;
 use App\Models\ProcessingStage;
 use App\Models\RoutingHistory;
 use BackedEnum;
 use Filament\Actions\Action;
+use Filament\Actions\ViewAction;
 use Filament\Forms\Components\Textarea;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
@@ -29,19 +32,41 @@ class FinanceProcessorReview extends Page implements HasTable
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedClipboardDocumentCheck;
 
-    protected static ?string $navigationLabel = 'Finance Processor';
+    protected static ?string $navigationLabel = 'Review Queue';
 
-    protected static ?string $title = 'Submitted Disbursement Vouchers';
+    protected static ?string $title = 'Review Queue';
+
+    protected static ?int $navigationSort = 1;
 
     public static function canAccess(): bool
     {
-        return Auth::user()?->hasRole('Finance Processor') ?? false;
+        return Auth::user()?->hasRole('finance_processor') ?? false;
+    }
+
+    public function getSubheading(): ?string
+    {
+        return 'Check each submitted voucher, then forward it to the Supervisor or return it to the requesting unit with remarks.';
+    }
+
+    public static function getNavigationBadge(): ?string
+    {
+        $count = DisbursementVoucher::query()->awaitingFinanceProcessor()->count();
+
+        return $count > 0 ? (string) $count : null;
+    }
+
+    public static function getNavigationBadgeTooltip(): ?string
+    {
+        return 'Vouchers waiting for your review';
     }
 
     public function table(Table $table): Table
     {
         return $table
-            ->query(DisbursementVoucher::query()->where('status', 'submitted'))
+            ->query(DisbursementVoucher::query()->awaitingFinanceProcessor())
+            ->emptyStateHeading('Your review queue is clear')
+            ->emptyStateDescription('Newly submitted vouchers will appear here.')
+            ->emptyStateIcon(Heroicon::OutlinedCheckBadge)
             ->columns([
                 TextColumn::make('dv_no')
                     ->label('DV No.')
@@ -53,10 +78,14 @@ class FinanceProcessorReview extends Page implements HasTable
                 TextColumn::make('fund.name')
                     ->label('Fund'),
                 TextColumn::make('amount')
-                    ->numeric()
+                    ->money('PHP')
                     ->sortable(),
                 TextColumn::make('particulars')
                     ->limit(50),
+                TextColumn::make('status')
+                    ->badge()
+                    ->formatStateUsing(fn (string $state): string => str($state)->replace('_', ' ')->title())
+                    ->color('info'),
                 TextColumn::make('submitted_at')
                     ->dateTime()
                     ->sortable(),
@@ -74,14 +103,18 @@ class FinanceProcessorReview extends Page implements HasTable
                         );
                     }),
             ])
+            ->recordAction('view')
             ->recordActions([
-                Action::make('endorse')
-                    ->label('Endorse to Finance Supervisor')
+                ViewAction::make()
+                    ->schema(DisbursementVoucherDetails::components())
+                    ->slideOver(),
+                Action::make('forward')
+                    ->label('Forward to Supervisor')
                     ->icon(Heroicon::OutlinedCheckCircle)
                     ->color('success')
                     ->requiresConfirmation()
-                    ->modalDescription('This voucher will be forwarded to the Finance Supervisor for approval.')
-                    ->action(fn (DisbursementVoucher $record) => $this->endorse($record)),
+                    ->modalDescription('This voucher will be marked for payment and forwarded to the Supervisor.')
+                    ->action(fn (DisbursementVoucher $record) => $this->forward($record)),
                 Action::make('return')
                     ->label('Return with remarks')
                     ->icon(Heroicon::OutlinedArrowUturnLeft)
@@ -96,19 +129,19 @@ class FinanceProcessorReview extends Page implements HasTable
             ]);
     }
 
-    protected function endorse(DisbursementVoucher $record): void
+    protected function forward(DisbursementVoucher $record): void
     {
-        $nextStage = $this->nextStageAfter($record)->firstOrFail();
+        $supervisorStage = ProcessingStage::query()->where('name', ProcessingStage::SUPERVISOR)->firstOrFail();
 
-        DB::transaction(function () use ($record, $nextStage) {
+        DB::transaction(function () use ($record, $supervisorStage) {
             $record->update([
-                'status' => 'in_process',
-                'current_stage_id' => $nextStage->id,
+                'status' => 'for_payment',
+                'current_stage_id' => $supervisorStage->id,
             ]);
 
             RoutingHistory::create([
                 'disbursement_voucher_id' => $record->id,
-                'processing_stage_id' => $nextStage->id,
+                'processing_stage_id' => $supervisorStage->id,
                 'action' => 'forwarded',
                 'acted_at' => now(),
             ]);
@@ -116,7 +149,7 @@ class FinanceProcessorReview extends Page implements HasTable
 
         Notification::make()
             ->success()
-            ->title('Voucher endorsed to Finance Supervisor')
+            ->title('Voucher forwarded to the Supervisor')
             ->send();
     }
 
@@ -147,23 +180,10 @@ class FinanceProcessorReview extends Page implements HasTable
             ->send();
     }
 
-    /**
-     * The stage that follows the voucher's current one, ordered by sequence.
-     * A freshly-submitted voucher has no stage yet, so this resolves to the
-     * workflow's first stage instead. Deliberately not keyed by stage name —
-     * stage names are admin-editable via the Processing Stages resource.
-     */
-    protected function nextStageAfter(DisbursementVoucher $record): Builder
+    protected function getHeaderWidgets(): array
     {
-        $currentSequence = $record->current_stage_id
-            ? ProcessingStage::find($record->current_stage_id)?->sequence
-            : null;
-
-        return ProcessingStage::query()
-            ->when(
-                $currentSequence !== null,
-                fn ($query) => $query->where('sequence', '>', $currentSequence),
-            )
-            ->orderBy('sequence');
+        return [
+            FinanceProcessorDvOverview::class,
+        ];
     }
 }

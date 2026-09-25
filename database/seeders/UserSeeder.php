@@ -22,7 +22,7 @@ class UserSeeder extends Seeder
     {
         $offices = Office::all();
 
-        foreach (['Requesting Unit', 'Finance Processor', 'Finance Supervisor'] as $role) {
+        foreach (['requesting_unit', 'finance_processor', 'finance_supervisor'] as $role) {
             $missing = self::USERS_PER_ROLE - User::role($role)->count();
 
             for ($i = 0; $i < $missing; $i++) {

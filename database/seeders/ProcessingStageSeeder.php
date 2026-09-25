@@ -9,7 +9,7 @@ use Illuminate\Database\Seeder;
 /**
  * The two processing stages a submitted voucher passes through: Finance
  * Processor review, then Finance Supervisor approval. Idempotent:
- * re-seeding updates the same records instead of duplicating them.
+ * re-seeding updates the same records (matched by sequence) instead of duplicating them.
  */
 class ProcessingStageSeeder extends Seeder
 {
@@ -18,15 +18,15 @@ class ProcessingStageSeeder extends Seeder
         $admin = User::where('email', 'admin@example.com')->firstOrFail();
 
         $stages = [
-            ['name' => 'Finance Processing', 'sequence' => 1],
-            ['name' => 'Finance Supervision', 'sequence' => 2],
+            ['name' => ProcessingStage::FINANCE_PROCESSOR, 'sequence' => 1],
+            ['name' => ProcessingStage::SUPERVISOR, 'sequence' => 2],
         ];
 
         foreach ($stages as $stage) {
             ProcessingStage::updateOrCreate(
-                ['name' => $stage['name']],
+                ['sequence' => $stage['sequence']],
                 [
-                    'sequence' => $stage['sequence'],
+                    'name' => $stage['name'],
                     'is_required' => true,
                     'created_by' => $admin->id,
                 ],

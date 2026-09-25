@@ -11,18 +11,21 @@ class RequestingUnitDvOverview extends StatsOverviewWidget
 {
     public static function canView(): bool
     {
-        return Auth::user()?->hasRole('Requesting Unit') ?? false;
+        return Auth::user()?->hasRole('requesting_unit') ?? false;
     }
 
     protected function getStats(): array
     {
-        $userId = Auth::id();
+        $user = Auth::user();
 
-        $countByStatus = fn (string $status): int => DisbursementVoucher::where('created_by', $userId)
+        $countByStatus = fn (string $status): int => DisbursementVoucher::query()
+            ->visibleToOfficeOf($user)
             ->where('status', $status)
             ->count();
 
         return [
+            Stat::make('Draft DVs', $countByStatus('draft'))
+                ->color('gray'),
             Stat::make('Submitted DVs', $countByStatus('submitted'))
                 ->color('gray'),
             Stat::make('In-process DVs', $countByStatus('in_process'))

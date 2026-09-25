@@ -2,10 +2,13 @@
 
 namespace App\Filament\Pages;
 
+use App\Filament\Resources\DisbursementVouchers\Schemas\DisbursementVoucherDetails;
+use App\Filament\Widgets\FinanceSupervisorDvOverview;
 use App\Models\DisbursementVoucher;
 use App\Models\RoutingHistory;
 use BackedEnum;
 use Filament\Actions\Action;
+use Filament\Actions\ViewAction;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Filament\Support\Icons\Heroicon;
@@ -24,29 +27,41 @@ class FinanceSupervisorReview extends Page implements HasTable
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedClipboardDocumentCheck;
 
-    protected static ?string $navigationLabel = 'Finance Supervisor';
+    protected static ?string $navigationLabel = 'For Completion';
 
-    protected static ?string $title = 'Endorsed Disbursement Vouchers';
+    protected static ?string $title = 'For Completion';
+
+    protected static ?int $navigationSort = 1;
 
     public static function canAccess(): bool
     {
-        return Auth::user()?->hasRole('Finance Supervisor') ?? false;
+        return Auth::user()?->hasRole('finance_supervisor') ?? false;
     }
 
-    /**
-     * status => the status a voucher must currently have for this
-     * transition to be allowed. Enforces the two-step flow: a voucher must
-     * be marked for payment before it can be marked completed.
-     */
-    private const TRANSITIONS = [
-        'for_payment' => 'in_process',
-        'completed' => 'for_payment',
-    ];
+    public function getSubheading(): ?string
+    {
+        return 'Vouchers forwarded by the Finance Processor. Mark each one completed once it has been paid.';
+    }
+
+    public static function getNavigationBadge(): ?string
+    {
+        $count = DisbursementVoucher::query()->awaitingSupervisor()->count();
+
+        return $count > 0 ? (string) $count : null;
+    }
+
+    public static function getNavigationBadgeTooltip(): ?string
+    {
+        return 'Vouchers ready for completion';
+    }
 
     public function table(Table $table): Table
     {
         return $table
-            ->query(DisbursementVoucher::query()->whereIn('status', ['in_process', 'for_payment']))
+            ->query(DisbursementVoucher::query()->awaitingSupervisor())
+            ->emptyStateHeading('Nothing to complete')
+            ->emptyStateDescription('Vouchers forwarded by the Finance Processor will appear here.')
+            ->emptyStateIcon(Heroicon::OutlinedCheckBadge)
             ->columns([
                 TextColumn::make('dv_no')
                     ->label('DV No.')
@@ -58,74 +73,71 @@ class FinanceSupervisorReview extends Page implements HasTable
                 TextColumn::make('fund.name')
                     ->label('Fund'),
                 TextColumn::make('amount')
-                    ->numeric()
+                    ->money('PHP')
                     ->sortable(),
                 TextColumn::make('particulars')
                     ->limit(50),
                 TextColumn::make('status')
                     ->badge()
                     ->formatStateUsing(fn (string $state): string => str($state)->replace('_', ' ')->title())
-                    ->color(fn (string $state): string => $state === 'for_payment' ? 'warning' : 'gray'),
+                    ->color('warning'),
                 TextColumn::make('submitted_at')
                     ->dateTime()
                     ->sortable(),
             ])
+            ->recordAction('view')
             ->recordActions([
-                Action::make('markForPayment')
-                    ->label('Mark for Payment')
-                    ->icon(Heroicon::OutlinedBanknotes)
-                    ->color('warning')
-                    ->visible(fn (DisbursementVoucher $record): bool => $record->status === 'in_process')
-                    ->requiresConfirmation()
-                    ->modalDescription('This voucher will be marked as ready for payment.')
-                    ->action(fn (DisbursementVoucher $record) => $this->updateStatus($record, 'for_payment')),
+                ViewAction::make()
+                    ->schema(DisbursementVoucherDetails::components())
+                    ->slideOver(),
                 Action::make('markCompleted')
                     ->label('Mark Completed')
                     ->icon(Heroicon::OutlinedCheckCircle)
                     ->color('success')
-                    ->visible(fn (DisbursementVoucher $record): bool => $record->status === 'for_payment')
                     ->requiresConfirmation()
-                    ->modalDescription('This voucher will be marked as completed.')
-                    ->action(fn (DisbursementVoucher $record) => $this->updateStatus($record, 'completed')),
+                    ->modalDescription('This voucher will be marked as completed and its completion date set to now.')
+                    ->action(fn (DisbursementVoucher $record) => $this->markCompleted($record)),
             ]);
     }
 
-    protected function updateStatus(DisbursementVoucher $record, string $status): void
+    protected function markCompleted(DisbursementVoucher $record): void
     {
         $record->refresh();
 
-        if ($record->status !== self::TRANSITIONS[$status]) {
+        if ($record->status !== 'for_payment') {
             Notification::make()
                 ->danger()
-                ->title('This voucher is no longer in the expected status.')
+                ->title('This voucher is no longer awaiting completion.')
                 ->body('Someone else may have already acted on it. The list has been refreshed.')
                 ->send();
 
             return;
         }
 
-        // A voucher only reaches this page via the Finance Processor's
-        // "Endorse" action, which always sets current_stage_id — so it's
-        // never null here. Reusing it avoids depending on a specific
-        // stage's name, which is admin-editable via the Processing Stages
-        // resource.
-        DB::transaction(function () use ($record, $status) {
+        DB::transaction(function () use ($record) {
             $record->update([
-                'status' => $status,
-                'completed_at' => $status === 'completed' ? now() : $record->completed_at,
+                'status' => 'completed',
+                'completed_at' => now(),
             ]);
 
             RoutingHistory::create([
                 'disbursement_voucher_id' => $record->id,
                 'processing_stage_id' => $record->current_stage_id,
-                'action' => 'processed',
+                'action' => 'completed',
                 'acted_at' => now(),
             ]);
         });
 
         Notification::make()
             ->success()
-            ->title($status === 'completed' ? 'Voucher marked as completed' : 'Voucher marked for payment')
+            ->title('Voucher marked as completed')
             ->send();
+    }
+
+    protected function getHeaderWidgets(): array
+    {
+        return [
+            FinanceSupervisorDvOverview::class,
+        ];
     }
 }

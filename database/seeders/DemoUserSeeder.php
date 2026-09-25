@@ -19,9 +19,11 @@ class DemoUserSeeder extends Seeder
 
         $accounts = [
             ['admin@example.com', 'Super Admin', config('filament-shield.super_admin.name', 'super_admin')],
-            ['requester@example.com', 'Requesting Unit', 'Requesting Unit'],
-            ['processor@example.com', 'Finance Processor', 'Finance Processor'],
-            ['supervisor@example.com', 'Finance Supervisor', 'Finance Supervisor'],
+            ['requester@example.com', 'Requesting Unit', 'requesting_unit'],
+            ['processor@example.com', 'Finance Processor', 'finance_processor'],
+            ['supervisor@example.com', 'Finance Supervisor', 'finance_supervisor'],
+            ['custodian@example.com', 'Warehouse Staff', 'custodian'],
+            ['approver@example.com', 'Supply Officer', 'approver'],
         ];
 
         foreach ($accounts as [$email, $name, $role]) {

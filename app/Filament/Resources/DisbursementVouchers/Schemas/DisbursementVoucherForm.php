@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\DisbursementVouchers\Schemas;
 
+use App\Models\DisbursementVoucher;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
@@ -15,6 +16,8 @@ class DisbursementVoucherForm
         return $schema
             ->components([
                 TextInput::make('dv_no')
+                    ->default(fn (): string => DisbursementVoucher::generateNextDvNo())
+                    ->unique(ignoreRecord: true)
                     ->required(),
                 TextInput::make('payee_name')
                     ->required(),
@@ -31,6 +34,7 @@ class DisbursementVoucherForm
                     ->relationship('currentStage', 'name'),
                 Select::make('status')
                     ->options([
+                        'draft' => 'Draft',
                         'submitted' => 'Submitted',
                         'in_process' => 'In Process',
                         'returned' => 'Returned',

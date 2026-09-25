@@ -1,0 +1,92 @@
+@import '../../../../vendor/filament/filament/resources/css/theme.css';
+
+@source '../../../../app/Filament/**/*';
+@source '../../../../resources/views/filament/**/*';
+
+/*
+ * Subtle University of the Philippines accents: maroon (#7B1113), forest
+ * green (#014421), and gold (#F3AA2C). Filament's primary/success/warning
+ * palettes carry the colors; these rules only add small touches on top.
+ */
+@theme {
+    --color-up-maroon: #7b1113;
+    --color-up-maroon-dark: #5a0c0e;
+    --color-up-green: #014421;
+    --color-up-gold: #f3aa2c;
+}
+
+/* A thin maroon-gold-green ribbon across the top of every page. */
+.fi-topbar {
+    border-top: 3px solid transparent;
+    border-image: linear-gradient(90deg, var(--color-up-maroon) 0 60%, var(--color-up-gold) 60% 75%, var(--color-up-green) 75% 100%) 1;
+}
+
+/* Warm off-white canvas instead of flat gray, light mode only. */
+:where(html:not(.dark)) .fi-body {
+    background-color: #faf8f6;
+}
+
+:where(html:not(.dark)) .fi-sidebar {
+    background-color: #fdfcfb;
+}
+
+/* Simple pages (password reset, etc.): soft maroon and green glow behind the card. */
+.fi-simple-layout {
+    background:
+        radial-gradient(60rem 30rem at 0% 0%, color-mix(in oklab, var(--color-up-maroon) 10%, transparent), transparent 70%),
+        radial-gradient(50rem 30rem at 100% 100%, color-mix(in oklab, var(--color-up-green) 10%, transparent), transparent 70%);
+}
+
+/*
+ * Sign-in page: a split screen with the brand panel on the left and a
+ * borderless form on the right. Below `lg` the panel hides and a compact
+ * brand strip sits above the form instead.
+ */
+.fi-simple-layout:has(.dv-login-aside) {
+    background: none;
+
+    .fi-simple-main {
+        @apply my-10 max-w-md bg-transparent px-6 py-0 shadow-none ring-0 sm:px-8 dark:bg-transparent;
+    }
+
+    .fi-simple-header-heading {
+        @apply text-3xl tracking-tight;
+    }
+
+    /* The brand panel (or the mobile strip) already shows the logo. */
+    .fi-simple-header .fi-logo {
+        @apply hidden;
+    }
+
+    .fi-input-wrp {
+        @apply rounded-lg;
+    }
+
+    .fi-btn {
+        @apply rounded-lg py-2.5;
+    }
+}
+
+@media (min-width: 64rem) {
+    .fi-simple-layout:has(.dv-login-aside) {
+        display: grid;
+        grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+        align-items: stretch;
+
+        > .dv-login-aside {
+            grid-column: 1;
+            grid-row: 1;
+            min-height: 100dvh;
+        }
+
+        > .fi-simple-main-ctn {
+            grid-column: 2;
+            grid-row: 1;
+        }
+    }
+}
+
+/* Section headings get a touch more presence. */
+.fi-section-header-heading {
+    letter-spacing: -0.01em;
+}

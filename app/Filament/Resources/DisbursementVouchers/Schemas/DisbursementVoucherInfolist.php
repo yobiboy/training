@@ -42,6 +42,9 @@ class DisbursementVoucherInfolist
                     ->dateTime()
                     ->placeholder('-'),
                 TextEntry::make('deleted_at')
+                    ->label('Deleted at')
+                    ->helperText(fn (DisbursementVoucher $record): ?string => $record->updatedBy ? "Last changed by {$record->updatedBy->name}" : null)
+                    ->color('danger')
                     ->dateTime()
                     ->visible(fn (DisbursementVoucher $record): bool => $record->trashed()),
             ]);

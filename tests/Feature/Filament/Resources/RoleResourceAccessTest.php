@@ -8,7 +8,7 @@ use Spatie\Permission\Models\Role;
 uses(RefreshDatabase::class);
 
 it('forbids a user without the ViewAny:Role permission from viewing the roles list', function () {
-    $role = Role::findOrCreate('Requesting Unit');
+    $role = Role::findOrCreate('requesting_unit');
     $user = User::factory()->create();
     $user->assignRole($role);
 

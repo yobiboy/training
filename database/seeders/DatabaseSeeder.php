@@ -20,6 +20,7 @@ class DatabaseSeeder extends Seeder
             OfficeSeeder::class,
             FundSeeder::class,
             ProcessingStageSeeder::class,
+            DisbursementVoucherSeeder::class,
         ]);
     }
 }
